@@ -1,0 +1,272 @@
+openapi: 3.0.3
+
+info:
+  title: DemoBackend Contact API
+  version: 1.0.0
+  description: |
+    API для отправки обращений через форму обратной связи.
+
+    Возможности:
+      - валидация входных данных;
+      - отправка письма владельцу сайта;
+      - отправка подтверждения пользователю;
+      - AI-анализ обращения;
+      - fallback при недоступности AI;
+      - rate limiting;
+      - логирование HTTP-запросов;
+      - получение агрегированной статистики;
+      - проверка состояния приложения.
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: Локальный сервер
+
+tags:
+  - name: Contact
+    description: Работа с обращениями
+  - name: System
+    description: Системные методы
+
+paths:
+  /api/contact:
+    post:
+      tags:
+        - Contact
+      summary: Отправить обращение
+      description: |
+        Принимает данные формы обратной связи, выполняет AI-анализ
+        и отправляет письма владельцу сайта и пользователю.
+      operationId: createContact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+            examples:
+              jobOffer:
+                summary: Предложение о работе
+                value:
+                  name: Roman
+                  phone: "89646637222"
+                  email: roman@example.com
+                  comment: Хотим предложить вам работу backend-разработчиком. Подскажите, когда вы сможете выйти?
+              projectRequest:
+                summary: Запрос на проект
+                value:
+                  name: Roman
+                  phone: "89646637222"
+                  email: roman@example.com
+                  comment: Нужен интернет-магазин для небольшой компании. Хотел бы узнать стоимость и сроки разработки.
+      responses:
+        '201':
+          description: Обращение успешно принято
+          headers:
+            X-RateLimit-Limit:
+              description: Максимальное количество запросов в период
+              schema:
+                type: integer
+                example: 3
+            X-RateLimit-Remaining:
+              description: Оставшееся количество запросов
+              schema:
+                type: integer
+                example: 2
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: Ваше обращение принято
+
+        '422':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                success: false
+                message: Ошибка валидации
+                errors:
+                  email:
+                    - Поле email должно содержать корректный адрес электронной почты.
+                  comment:
+                    - Поле comment должно содержать не менее 10 символов.
+
+        '429':
+          description: Превышен лимит запросов
+          headers:
+            Retry-After:
+              description: Количество секунд до следующей попытки
+              schema:
+                type: integer
+                example: 600
+            X-RateLimit-Limit:
+              description: Максимальное количество запросов в период
+              schema:
+                type: integer
+                example: 3
+            X-RateLimit-Remaining:
+              description: Оставшееся количество запросов
+              schema:
+                type: integer
+                example: 0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Слишком много запросов. Попробуйте позже.
+
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Внутренняя ошибка сервера
+
+        '503':
+          description: Не удалось отправить письмо
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Сервис отправки писем временно недоступен
+
+  /api/health:
+    get:
+      tags:
+        - System
+      summary: Проверить состояние приложения
+      description: Возвращает простой статус доступности приложения.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Приложение работает
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+
+components:
+  schemas:
+    ContactRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - phone
+        - email
+        - comment
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Имя отправителя
+          example: Roman
+
+        phone:
+          type: string
+          maxLength: 30
+          description: Номер телефона
+          example: "89646637222"
+
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email отправителя
+          example: roman@example.com
+
+        comment:
+          type: string
+          minLength: 5
+          maxLength: 2000
+          description: Текст обращения
+          example: Хотим предложить вам работу backend-разработчиком. Подскажите, когда вы сможете выйти?
+
+    SuccessResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+          example: true
+
+        message:
+          type: string
+          example: Ваше обращение принято
+
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          enum:
+            - false
+          example: false
+
+        message:
+          type: string
+          example: Внутренняя ошибка сервера
+
+    ValidationErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - message
+        - errors
+      properties:
+        success:
+          type: boolean
+          enum:
+            - false
+          example: false
+
+        message:
+          type: string
+          example: Ошибка валидации
+
+        errors:
+          type: object
+          description: Ошибки, сгруппированные по полям
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            email:
+              - Поле email должно содержать корректный адрес электронной почты.
+
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+          example: ok
