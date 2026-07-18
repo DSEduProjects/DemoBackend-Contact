@@ -15,7 +15,7 @@
 ### Установка
 
 ```powershell
-git clone <URL-репозитория>
+git clone https://github.com/DSEduProjects/DemoBackend-Contact
 cd DemoBackend
 
 composer install
