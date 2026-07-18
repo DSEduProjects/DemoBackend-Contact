@@ -6,7 +6,7 @@
 
 ### Требования
 
-- PHP 8.3+
+- PHP 8.4+
 - Composer
 - доступ к SMTP-серверу
 - API-ключ AI-провайдера
@@ -15,7 +15,7 @@
 ### Установка
 
 ```powershell
-git clone <URL-репозитория>
+git clone https://github.com/DSEduProjects/DemoBackend-Contact
 cd DemoBackend
 
 composer install
@@ -88,7 +88,7 @@ POST /v1/chat/completions
 
 ### Backend
 
-- PHP 8.3+
+- PHP 8.4+
 - Laravel 13
 - Blade
 - Laravel HTTP Client
