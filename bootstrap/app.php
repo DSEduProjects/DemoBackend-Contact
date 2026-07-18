@@ -7,7 +7,6 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
-use Throwable;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,15 +16,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $trustedProxies = (string) env(
+            'TRUSTED_PROXIES',
+            '127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7'
+        );
+
         $middleware->trustProxies(
-            at: [
-                '127.0.0.1',
-                '::1',
-            ],
-            headers: Request::HEADER_X_FORWARDED_FOR
-                | Request::HEADER_X_FORWARDED_HOST
-                | Request::HEADER_X_FORWARDED_PORT
-                | Request::HEADER_X_FORWARDED_PROTO
+            at: $trustedProxies === '*'
+                ? '*'
+                : array_values(array_filter(array_map(
+                    'trim',
+                    explode(',', $trustedProxies)
+                )))
         );
 
         $middleware->api(append: [
@@ -59,7 +61,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (
-            Throwable $exception,
+            \Throwable $exception,
             Request $request
         ) {
             if (!$request->is('api/*')) {
