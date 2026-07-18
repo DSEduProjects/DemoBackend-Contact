@@ -88,7 +88,7 @@ POST /v1/chat/completions
 
 ### Backend
 
-- PHP 8.3+
+- PHP 8.4+
 - Laravel 13
 - Blade
 - Laravel HTTP Client
